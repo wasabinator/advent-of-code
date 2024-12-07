@@ -66,21 +66,13 @@ fn calc_positions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, sta
     prev_pos_direction.insert((start_x, start_y, start_dir));
 
     loop {
-        let dir = DIRECTIONS[direction];
-        let next_x = x.checked_add_signed(dir.0);
-        let next_y = y.checked_add_signed(dir.1);
-
-        let valid = next_x.is_some() && next_y.is_some();
-        let next_x = next_x.unwrap_or(0);
-        let next_y = next_y.unwrap_or(0);
-
-        if valid && next_x < width && next_y < height {
-            let ch = grid[next_y][next_x];
+        if let Some(next) = move_pos(x, y, width, height, direction) {
+            let ch = grid[next.1][next.0];
             if ch == '#' || ch == 'O' {
                 direction = (direction + 1) & 3;
             } else {
-                x = next_x;
-                y = next_y;
+                x = next.0;
+                y = next.1;
                 prev_pos.insert((x, y));
                 if !prev_pos_direction.insert((x, y, direction)) {
                     return None;
@@ -95,13 +87,14 @@ fn calc_positions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, sta
 }
 
 fn calc_obstructions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, start_dir: usize) -> usize {
-    let mut count = 0;
     let width = grid[0].len();
     let height = grid.len();
     let mut direction = start_dir;
 
     let mut x = start_x;
     let mut y = start_y;
+
+    let mut obstacles: HashSet<(usize, usize)> = HashSet::new();
 
     loop {
         if let Some(p) = move_pos(x, y, width, height, direction) {
@@ -110,18 +103,11 @@ fn calc_obstructions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, 
                 direction = (direction + 1) & 3;
             } else {
                 // Test with an obstruction here
-                if p.0 != start_x && p.1 != start_y {
+                if ch != '^' {
                     grid[p.1][p.0] = 'O';
                     let rc = calc_positions(grid, start_x, start_y, start_dir);
                     if let None = rc {
-                        // println!("Found obstacle");
-                        // for i in 0..width {
-                        //     for j in 0..height {
-                        //         print!("{}", grid[i][j]);
-                        //     }
-                        //     println!();
-                        // }
-                        count += 1;
+                        obstacles.insert((p.0, p.1));
                     }
                     grid[p.1][p.0] = '.';
                 }
@@ -129,11 +115,10 @@ fn calc_obstructions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, 
                 y = p.1;
             }
         } else {
-            println!("Finished");
             break;
         }
     }
-    count
+    obstacles.len()
 }
 
 fn move_pos(x: usize, y: usize, w: usize, h: usize, dir: usize) -> Option<(usize, usize)> {
