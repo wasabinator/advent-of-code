@@ -85,32 +85,30 @@ fn calc_route(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, start_d
     let mut dir = start_dir;
 
     println!("*** RETRACING ***** start_dir: {}", dir);
+
     let len = turn_positions.len();
     let mut in_front: bool = true;
     for i in 0..len {
         let pos = turn_positions[i];
         let right_dir = (dir + 1) & 3;
-        while x != pos.0 || y != pos.1 {
-            grid[y][x] = '!';
+        while x != pos.0 || y != pos.1 || dir != pos.2 {
+            grid[y][x] = format!("{:X}", i).chars().take(1).next().unwrap();
             if let Some(p) = move_pos(x, y, width, height, dir) {
                 x = p.0;
                 y = p.1;
             } else {
                 println!("Finished");
                 break;
-                //exit(0);
             }
-    
-            for j in 0..i {
-                let turn = turn_positions[j];
 
-                if (x == turn.0 || y == turn.1) && turn.2 == right_dir {
-                    if can_reach(grid, x, y, &turn, right_dir) {
-                        println!("Found obstacle position from: ({},{}), dir: ({},{})", x, y, DIRECTIONS[dir].0, DIRECTIONS[dir].1);
-                        grid[y][x] = 'O';
-                        obstruction_count += 1;
-                    }
-                }
+            if i > 0 && can_reach_previous_turn_point(i, grid, x, y, turn_positions, right_dir) {
+                println!("Found obstacle position from: ({},{}), dir: ({},{})",
+                x,
+                y,
+                DIRECTIONS[dir].0,
+                DIRECTIONS[dir].1);
+                grid[y][x] = 'O';
+                obstruction_count += 1;
             }
         }
         dir = right_dir;
@@ -132,31 +130,42 @@ fn calc_route(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, start_d
     (pos_count, obstruction_count)
 }
 
-fn can_reach(grid: &mut Vec<Vec<char>>, curr_x: usize, curr_y: usize, point: &(usize, usize, usize), direction: usize) -> bool {
+fn can_reach_previous_turn_point(idx: usize, grid: &mut Vec<Vec<char>>, curr_x: usize, curr_y: usize, points: &Vec<(usize, usize, usize)>, direction: usize) -> bool {
     let mut x = curr_x;
     let mut y = curr_y;
     let width = grid[0].len();
     let height = grid.len();
 
-    //let right = (direction + 1) & 3;
-    let dir = DIRECTIONS[direction];
-    if (x == point.0 && ((y > point.1 && dir.1 < 0) || (y < point.1 && dir.1 > 0))) ||
-       (y == point.1 && ((x > point.0 && dir.0 < 0) || (x < point.0 && dir.0 > 0))) {
-        // Scan for now obstacles
-        while x != point.0 || y != point.1 {
-            if grid[y][x] == '#' {
-                return false;
-            }
-            if let Some(pt) = move_pos(x, y, width, height, direction) {
+    //let limit = 100;
+    //let mut mv = 0;
+    let mut dir = direction;
+
+    // Keep track on where we have been and in what direction, so we don't go endlessly in circles
+    let mut prev: HashSet<(usize, usize, usize)> = HashSet::new();
+
+    //while mv < limit {
+    loop {
+        if let Some(pt) = move_pos(x, y, width, height, dir) {
+            if grid[pt.1][pt.0] == '#' {
+                dir = (dir + 1) & 3; // Turn right
+            } else {
+                for i in 0..idx {
+                    let p = points[i];
+                    if p.0 == pt.0 && p.1 == pt.1 && p.2 == dir {
+                        return true;
+                    }
+                }
                 x = pt.0;
                 y = pt.1;
-            } else {
-                return false;
+                if !prev.insert((pt.0, pt.1, dir)) {
+                    println!("Walking in circles");
+                    return false;
+                }
             }
+            //mv += 1;
+        } else {
+            return false;
         }
-        true
-    } else {
-        false
     }
 }
 
