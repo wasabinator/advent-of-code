@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
 use std::collections::HashSet;
 use std::fs;
 
@@ -63,6 +61,9 @@ fn calc_positions(grid: &mut Vec<Vec<char>>, start_x: usize, start_y: usize, sta
 
     let mut prev_pos: HashSet<(usize, usize)> = HashSet::new();
     let mut prev_pos_direction: HashSet<(usize, usize, usize)> = HashSet::new();
+
+    prev_pos.insert((start_x, start_y));
+    prev_pos_direction.insert((start_x, start_y, start_dir));
 
     loop {
         let dir = DIRECTIONS[direction];
